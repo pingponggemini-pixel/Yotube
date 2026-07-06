@@ -3,94 +3,281 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>YouTube 連結播放器</title>
+    <title>自律 YouTube 播放器</title>
     <style>
+        :root {
+            --primary-color: #ff0000;
+            --bg-color: #f9f9f9;
+            --card-bg: #ffffff;
+            --text-color: #333333;
+        }
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .container {
             max-width: 800px;
-            margin: 40px auto;
-            padding: 0 20px;
-            text-align: center;
-            background-color: #f9f9f9;
+            width: 100%;
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
-        h2 {
-            color: #ff0000;
+        h1 { text-align: center; color: var(--primary-color); }
+        
+        /* 彈出視窗樣式 */
+        .modal {
+            display: flex;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
         }
-        .input-container {
-            margin: 20px 0;
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
         }
-        input[type="text"] {
-            width: 70%;
-            padding: 10px;
-            font-size: 16px;
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            padding: 8px;
+            box-sizing: border-box;
             border: 1px solid #ccc;
             border-radius: 4px;
         }
         button {
-            padding: 10px 20px;
-            font-size: 16px;
-            background-color: #ff0000;
+            background: var(--primary-color);
             color: white;
             border: none;
+            padding: 10px 20px;
             border-radius: 4px;
             cursor: pointer;
+            font-size: 16px;
+            width: 100%;
         }
-        button:hover {
-            background-color: #cc0000;
+        button:hover { background: #cc0000; }
+        
+        /* 歷史紀錄樣式 */
+        .history-box {
+            background: #eee;
+            padding: 10px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            font-size: 14px;
         }
+
+        /* 影片播放區域 */
         .video-container {
-            margin-top: 30px;
             position: relative;
-            padding-bottom: 56.25%; /* 16:9 比例 */
+            padding-bottom: 56.25%; /* 16:9 */
             height: 0;
             overflow: hidden;
-            box-shadow: 0px 4px 10px rgba(0,0,0,0.1);
-            display: none; /* 預設隱藏 */
+            max-width: 100%;
+            background: #000;
+            border-radius: 8px;
+            margin-top: 20px;
+            display: none;
         }
         .video-container iframe {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            top: 0; left: 0; width: 100%; height: 100%;
             border: 0;
+        }
+        #reminder {
+            color: red;
+            font-weight: bold;
+            text-align: center;
+            margin-top: 10px;
         }
     </style>
 </head>
 <body>
 
-    <h2>YouTube 連結播放器</h2>
-    <p>請在下方輸入 YouTube 影片網址，點擊按鈕即可直接觀看：</p>
-
-    <div class="input-container">
-        <input type="text" id="videoUrl" placeholder="請貼上 YouTube 影片網址 (例如: https://www.youtube.com/watch?v=xxxxxx)">
-        <button onclick="playVideo()">播放</button>
+<div class="container">
+    <h1>自律 YouTube 播放器</h1>
+    <div id="current-info" style="display:none;">
+        <h3>目前正在觀看：</h3>
+        <p id="info-display"></p>
     </div>
+    <div class="video-container" id="videoTarget"></div>
+    <div id="reminder"></div>
+</div>
 
-    <div class="video-container" id="playerContainer">
-        <iframe id="youtubePlayer" src="" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+<div class="modal" id="infoModal">
+    <div class="modal-content">
+        <h2>請填寫觀看計畫</h2>
+        
+        <div id="last-session-box" class="history-box" style="display: none;">
+            <strong>詢問：上次的觀看紀錄</strong><br>
+            <span id="last-session-text"></span>
+        </div>
+
+        <div class="form-group">
+            <label for="ytUrl">YouTube 影片網址：</label>
+            <input type="text" id="ytUrl" placeholder="請貼上 https://www.youtube.com/watch?v=... 或 https://youtu.be/...">
+        </div>
+        <div class="form-group">
+            <label for="watchTime">預計觀看時間 (分鐘)：</label>
+            <input type="number" id="watchTime" min="1" placeholder="例如：20">
+        </div>
+        <div class="form-group">
+            <label for="watchReason">為什麼想看這部影片？（大腦思考防呆）</label>
+            <textarea id="watchReason" rows="3" placeholder="請詳細說明原因..."></textarea>
+        </div>
+        <div class="form-group">
+            <label for="videoType">影片類型：</label>
+            <select id="videoType">
+                <option value="學習/教學">學習/教學</option>
+                <option value="娛樂/放鬆">娛樂/放鬆</option>
+                <option value="新聞/時事">新聞/時事</option>
+                <option value="音樂/藝術">音樂/藝術</option>
+                <option value="其他">其他</option>
+            </select>
+        </div>
+        
+        <button onclick="validateAndSubmit()">確認並開始觀看</button>
     </div>
+</div>
 
-    <script>
-        function playVideo() {
-            const urlInput = document.getElementById('videoUrl').value.trim();
-            const playerContainer = document.getElementById('playerContainer');
-            const iframe = document.getElementById('youtubePlayer');
-            
-            // 提取 YouTube Video ID 的正則表達式
-            const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
-            const match = urlInput.match(regExp);
+<script>
+    // --- 填入你的 Gemini API Key ---
+    const GEMINI_API_KEY = "請在此處填入你的_GEMINI_API_KEY"; 
+    // ---------------------------------
 
-            if (match && match[2].length === 11) {
-                const videoId = match[2];
-                // 轉換成 YouTube 嵌入專用的網址
-                iframe.src = `https://www.youtube.com/embed/${videoId}`;
-                playerContainer.style.display = "block"; // 顯示播放器
-            } else {
-                alert("請輸入正確的 YouTube 影片網址！");
-            }
+    // 頁面載入時檢查是否有歷史紀錄
+    window.onload = function() {
+        const lastSession = localStorage.getItem('lastWatchSession');
+        if (lastSession) {
+            const data = JSON.parse(lastSession);
+            document.getElementById('last-session-text').innerHTML = `
+                <b>網址：</b> ${data.url}<br>
+                <b>時間：</b> ${data.minutes} 分鐘<br>
+                <b>類型：</b> ${data.type}<br>
+                <b>原因：</b> ${data.reason}
+            `;
+            document.getElementById('last-session-box').style.display = 'block';
         }
-    </script>
+    };
+
+    // 轉換 YouTube 網址為 Embed 網址
+    function getEmbedUrl(url) {
+        let regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+        let match = url.match(regExp);
+        if (match && match[2].length == 11) {
+            return "https://www.youtube.com/embed/" + match[2];
+        }
+        return null;
+    }
+
+    // 呼叫 Gemini API 檢查理由是否胡亂填寫
+    async function checkReasonWithAI(reason) {
+        if (!GEMINI_API_KEY || GEMINI_API_KEY.includes("請在此處填入")) {
+            console.log("未偵測到 API Key，跳過 AI 審查");
+            return true; // 若沒填 API Key 預設放行
+        }
+
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${GEMINI_API_KEY}`;
+        const prompt = `使用者輸入了以下觀看 YouTube 影片的理由： 「${reason}」。請判斷這段文字是否是亂填的（例如：隨便打字如 "asdf"、純數字、無意義的髒話、或只有一兩個字如 "看"、"想看"）。如果「是亂填的」，請只回傳 FALSE。如果「是有意義的理由」，請只回傳 TRUE。請勿包含任何其他字眼。`;
+
+        try {
+            const response = await fetch(url, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+            });
+            const data = await response.json();
+            const textResult = data.candidates[0].content.parts[0].text.trim().toUpperCase();
+            return textResult.includes("TRUE");
+        } catch (error) {
+            console.error("Gemini API 呼叫失敗:", error);
+            return true; // 發生錯誤時先放行，避免網頁壞掉
+        }
+    }
+
+    // 表單驗證與提交
+    async function validateAndSubmit() {
+        const url = document.getElementById('ytUrl').value.trim();
+        const minutes = document.getElementById('watchTime').value.trim();
+        const reason = document.getElementById('watchReason').value.trim();
+        const type = document.getElementById('videoType').value;
+
+        // 嚴格限制：沒填寫基本資料無法觀看
+        if (!url || !minutes || !reason) {
+            alert("請填寫所有欄位（網址、時間、理由）才能開始觀看！");
+            return;
+        }
+
+        const embedUrl = getEmbedUrl(url);
+        if (!embedUrl) {
+            alert("無效的 YouTube 網址，請重新輸入！");
+            return;
+        }
+
+        // 呼叫 AI 進行審查
+        alert("正在讓 Gemini 審查你的觀看理由...");
+        const isPassed = await checkReasonWithAI(reason);
+
+        if (!isPassed) {
+            const forceConfirm = confirm("Gemini 偵測到你的理由可能胡亂填寫！\n\n是否要【強行確認】？\n（注意：強行確認後，系統將會每分鐘發出彈窗提醒你專注！）");
+            if (forceConfirm) {
+                // 強行確認：啟動一分鐘一次的惡魔提醒
+                startIntervalReminder(true);
+            } else {
+                return; // 取消則留在此頁面
+            }
+        } else {
+            // 正常通過
+            startIntervalReminder(false);
+        }
+
+        // 儲存本次資料到 localStorage (下次使用時顯示)
+        const sessionData = { url, minutes, reason, type };
+        localStorage.setItem('lastWatchSession', JSON.stringify(sessionData));
+
+        // 渲染影片與更新介面
+        document.getElementById('infoModal').style.display = 'none';
+        document.getElementById('info-display').innerHTML = `<b>類型：</b>${type} | <b>預計時間：</b>${minutes} 分鐘<br><b>原因：</b>${reason}`;
+        document.getElementById('current-info').style.display = 'block';
+        
+        const videoContainer = document.getElementById('videoTarget');
+        videoContainer.innerHTML = `<iframe src="${embedUrl}?autoplay=1" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
+        videoContainer.style.display = 'block';
+
+        // 設定觀看時間到期提醒
+        setTimeout(() => {
+            alert(`時間到！你原先設定看 ${minutes} 分鐘。請關掉網頁，回到現實世界吧！`);
+            document.getElementById('reminder').innerText = "【時間已到！】建議立即關閉此網頁。";
+        }, minutes * 60 * 1000);
+    }
+
+    // 每分鐘提醒機制
+    function startIntervalReminder(isFlooding) {
+        if (isFlooding) {
+            setInterval(() => {
+                alert("【警報】你剛剛亂填了理由！你確定你現在看這個影片是有意義的嗎？請保持專注！");
+            }, 60000); // 60000 毫秒 = 1 分鐘
+        }
+    }
+</script>
 
 </body>
 </html>
