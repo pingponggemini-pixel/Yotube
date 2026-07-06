@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube 連結播放器</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 0 20px;
+            text-align: center;
+            background-color: #f9f9f9;
+        }
+        h2 {
+            color: #ff0000;
+        }
+        .input-container {
+            margin: 20px 0;
+        }
+        input[type="text"] {
+            width: 70%;
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #ff0000;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #cc0000;
+        }
+        .video-container {
+            margin-top: 30px;
+            position: relative;
+            padding-bottom: 56.25%; /* 16:9 比例 */
+            height: 0;
+            overflow: hidden;
+            box-shadow: 0px 4px 10px rgba(0,0,0,0.1);
+            display: none; /* 預設隱藏 */
+        }
+        .video-container iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: 0;
+        }
+    </style>
+</head>
+<body>
+
+    <h2>YouTube 連結播放器</h2>
+    <p>請在下方輸入 YouTube 影片網址，點擊按鈕即可直接觀看：</p>
+
+    <div class="input-container">
+        <input type="text" id="videoUrl" placeholder="請貼上 YouTube 影片網址 (例如: https://www.youtube.com/watch?v=xxxxxx)">
+        <button onclick="playVideo()">播放</button>
+    </div>
+
+    <div class="video-container" id="playerContainer">
+        <iframe id="youtubePlayer" src="" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+    </div>
+
+    <script>
+        function playVideo() {
+            const urlInput = document.getElementById('videoUrl').value.trim();
+            const playerContainer = document.getElementById('playerContainer');
+            const iframe = document.getElementById('youtubePlayer');
+            
+            // 提取 YouTube Video ID 的正則表達式
+            const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+            const match = urlInput.match(regExp);
+
+            if (match && match[2].length === 11) {
+                const videoId = match[2];
+                // 轉換成 YouTube 嵌入專用的網址
+                iframe.src = `https://www.youtube.com/embed/${videoId}`;
+                playerContainer.style.display = "block"; // 顯示播放器
+            } else {
+                alert("請輸入正確的 YouTube 影片網址！");
+            }
+        }
+    </script>
+
+</body>
+</html>
